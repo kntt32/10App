@@ -243,6 +243,77 @@ impl UsersData {
             Err(ERROR_PAGE_HTML.to_string())
         }
     }
+
+    fn build_ranking(&self) -> Result<String, String> {
+        Ok("
+<!DOCTYPE html>
+<html lang=\"ja\">
+    <meta charset=\"utf-8\">
+    <title>Ranking</title>
+    <head>
+        <style>
+            .sign {
+                font-size: 12px;
+                color: #b0b0b0;
+            }
+            body {
+                font-family: sans-serif;
+                margin-right: auto;
+                margin-left: auto;
+                display: grid;
+                justify-items: center;
+                align-content: start;
+            }
+            h1 {
+                width: auto;
+                font-size: 30px;
+                margin: 10px;
+            }
+            h2 {
+                width: auto;
+                font-size: 25px;
+                margin: 10px;
+                color: #929292;
+            }
+            input {
+                width: 200px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #ebebeb;
+                margin: 10px;
+            }
+            button {
+                width: 150px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #dee9ec;
+                margin: 10px;
+            }
+        </style>
+
+        <script>
+            function signup() {
+                let object = document.getElementById(\"text_box\");
+                let path = location.href;
+                if(path.substring(path.length-1) == \"/\") {
+                    path.pop();
+                }
+                location.href = path + \"?\" + object.value;
+            }
+        </script>
+    </head>
+
+    <body>
+        <h1>Ranking</h1>
+        
+    </body>
+</html>
+".to_string())
+    }
 }
 
 impl Service for UsersData {
@@ -272,6 +343,8 @@ impl Service for UsersData {
             }else {
                 Err(ERROR_PAGE_HTML.to_string())
             }
+        }else if url == "" {
+            self.build_ranking()
         }else {
             Err(ERROR_PAGE_HTML.to_string())
         }
