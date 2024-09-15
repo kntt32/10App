@@ -4,35 +4,144 @@ use std::error::Error;
 use std::io::Read;
 use std::io::Write;
 
-//mod uri;
+const ADMIN_PASSWORD: &str = "shuma240";
 
-static ADMIN_PAGE_URI: &str = "/admin240shuma/";
-static ADMIN_PAGE_HTML: &str = "
+const ADMIN_PAGE_URL: &str = "/admin";
+static ADMIN_PAGE_AUTH: &str = "
 <!DOCTYPE html>
-<meta charset=\"utf-8\">
-<html>
+<html lang=\"ja\">
+    <meta charset=\"utf-8\">
+    <title>Login</title>
     <head>
-        <style type=\"text/css\">
+        <style>
+            .sign {
+                font-size: 12px;
+                color: #b0b0b0;
+            }
+            body {
+                font-family: sans-serif;
+                margin-right: auto;
+                margin-left: auto;
+                display: grid;
+                justify-items: center;
+                align-content: start;
+            }
+            h1 {
+                width: auto;
+                font-size: 30px;
+                margin: 10px;
+            }
+            h2 {
+                width: auto;
+                font-size: 25px;
+                margin: 10px;
+                color: #929292;
+            }
+            input {
+                width: 200px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #ebebeb;
+                margin: 10px;
+            }
+            button {
+                width: 150px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #dee9ec;
+                margin: 10px;
+            }
         </style>
 
         <script>
-        function shutdown() {
-            if(confirm(\"シャットダウンしますか?\")) {
-                location.href = \"/admin240shuma/shutdown\";
+            function send_password() {
+                let object = document.getElementById(\"password_box\");
+                location.href = \"/admin?\" + object.value;
             }
-        }
+        </script>
+    </head>
+
+    <body>
+        <h1>AdminPage</h1>
+        <input id=\"password_box\" type=\"password\" placeholder=\"Password\"></input>
+        <button onclick=\"send_password()\">Login</button>
+        <div class=\"sign\">built by <a class=\"sign\" href=\"https://github.com/kntt32/\">kntt32</a></div>
+    </body>
+</html>
+";
+
+static ADMIN_PAGE_HTML: &str = "
+<!DOCTYPE html>
+<html lang=\"ja\">
+    <meta charset=\"utf-8\">
+    <title>AdminPage</title>
+    <head>
+        <style>
+            .sign {
+                font-size: 12px;
+                color: #b0b0b0;
+            }
+            body {
+                font-family: sans-serif;
+                margin-right: auto;
+                margin-left: auto;
+                display: grid;
+                justify-items: center;
+                align-content: start;
+            }
+            h1 {
+                width: auto;
+                font-size: 30px;
+                margin: 10px;
+            }
+            h2 {
+                width: auto;
+                font-size: 25px;
+                margin: 10px;
+                color: #929292;
+            }
+            input {
+                width: 200px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #ebebeb;
+                margin: 10px;
+            }
+            button {
+                width: 150px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #dee9ec;
+                margin: 10px;
+            }
+        </style>
+
+        <script>
+            function shutdown() {
+                if(confirm(\"シャットダウンしますか?\")) {
+                    location.href = \"/admin/shutdown\";
+                }
+            }
         </script>
     </head>
 
     <body>
         <h1>AdminPage</h1>
         <button onclick=\"shutdown()\">Shutdow</button>
+        <div class=\"sign\">built by <a class=\"sign\" href=\"https://github.com/kntt32/\">kntt32</a></div>
     </body>
 </html>
 ";
 
-static SHUTDOWN_URI: &str = "/admin240shuma/shutdown/";
-static SHUTDOWN_HTML: &str = "<h1>System Shutdowned</h1>";
+const SHUTDOWN_URL: &str = "/admin/shutdown";
 
 
 pub struct Server {
@@ -41,7 +150,7 @@ pub struct Server {
 }
 
 pub trait Service {
-    fn response(&mut self, uri: &str) -> Result<String, ()>;
+    fn response(&mut self, url: &str, query: &str) -> Result<String, String>;
 
     fn save(&self);
 }
@@ -71,8 +180,8 @@ impl Server {
 
             if 2 <= splitted_str.len() {
                 let mut uri_string = splitted_str[1].to_string();
-                if !uri_string.ends_with('/') {
-                    uri_string.push('/');
+                if uri_string.ends_with('/') {
+                    uri_string.pop();
                 }
                 Ok(uri_string)
             }else {
@@ -80,25 +189,44 @@ impl Server {
             }
         }
 
+        fn split_url(uri: &String) -> (&str, &str) {
+            let splitted_str: Vec<&str> = uri.splitn(2, "?").collect();
+
+            if 2 <= splitted_str.len() {
+                (splitted_str[0], splitted_str[1])
+            }else {
+                (splitted_str[0], &uri[0 .. 0])
+            }
+        }
+
         enum ResponseType {
             Ok(String),
             NotFound(String),
-            Shutdown(String)
+            Shutdown
         }
 
-        fn response(service: &mut Box<dyn Service>, uri: &str) -> ResponseType {
-            if uri == ADMIN_PAGE_URI {
-                ResponseType::Ok(ADMIN_PAGE_HTML.to_string())
-            }else if uri == SHUTDOWN_URI {
-                service.save();
-                ResponseType::Shutdown(SHUTDOWN_HTML.to_string())
-            }else {
-                let response = service.response(uri);
+        fn response(service: &mut Box<dyn Service>, uri: &String) -> ResponseType {
+            let (url, query) = split_url(uri);
 
-                if let Ok(response_string) = response {
-                    ResponseType::Ok(response_string.to_string())
-                }else {
-                    ResponseType::NotFound("<h1>Not Found</h1>".to_string())
+            match url {
+                ADMIN_PAGE_URL => {
+                    if query == ADMIN_PASSWORD {
+                        ResponseType::Ok(ADMIN_PAGE_HTML.to_string())
+                    }else {
+                        ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
+                    }
+                },
+                SHUTDOWN_URL => {
+                    service.save();
+                    ResponseType::Shutdown
+                },
+                _ => {
+                    let response = service.response(url, query);
+
+                    match response {
+                        Ok(response_string) => ResponseType::Ok(response_string.to_string()),
+                        Err(response_string) => ResponseType::NotFound(response_string)
+                    }
                 }
             }
         }
@@ -114,9 +242,7 @@ impl Server {
                     let response_http_message = match wrapped_response {
                         ResponseType::Ok(msg) => "HTTP/1.1 200 OK\nContent-Type: text/html\n\n".to_string() + &msg,
                         ResponseType::NotFound(msg) => "HTTP/1.1 404 NotFound\nContent-Type: text/html\n\n".to_string() + &msg,
-                        ResponseType::Shutdown(msg) => {
-                            let shutdown_message = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n".to_string() + &msg;
-                            if let Ok(_) = stream.write_all(&shutdown_message.into_bytes()) {}
+                        ResponseType::Shutdown => {
                             std::process::exit(0);
                         }
                     };

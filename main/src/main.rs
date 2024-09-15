@@ -7,7 +7,7 @@ fn f(uri: &str) -> Result<String, ()> {
 }
 
 fn main() {
-    let mut users_data = UsersData::new();
+    let users_data = UsersData::new();
 
     let mut server = Server::new("127.0.0.1:80", Box::new(UsersData::new()));
 
