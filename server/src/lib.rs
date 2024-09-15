@@ -4,7 +4,7 @@ use std::error::Error;
 use std::io::Read;
 use std::io::Write;
 
-mod uri;
+//mod uri;
 
 static ADMIN_PAGE_URI: &str = "/admin240shuma/";
 static ADMIN_PAGE_HTML: &str = "
@@ -32,7 +32,7 @@ static ADMIN_PAGE_HTML: &str = "
 ";
 
 static SHUTDOWN_URI: &str = "/admin240shuma/shutdown/";
-static SHUTDOWN_HTML: &str = "System Shutdowned";
+static SHUTDOWN_HTML: &str = "<h1>System Shutdowned</h1>";
 
 
 pub struct Server {
@@ -80,19 +80,25 @@ impl Server {
             }
         }
 
-        fn response(service: &mut Box<dyn Service>, uri: &str) -> String {
+        enum ResponseType {
+            Ok(String),
+            NotFound(String),
+            Shutdown(String)
+        }
+
+        fn response(service: &mut Box<dyn Service>, uri: &str) -> ResponseType {
             if uri == ADMIN_PAGE_URI {
-                ADMIN_PAGE_HTML.to_string()
+                ResponseType::Ok(ADMIN_PAGE_HTML.to_string())
             }else if uri == SHUTDOWN_URI {
                 service.save();
-                std::process::exit(0);
+                ResponseType::Shutdown(SHUTDOWN_HTML.to_string())
             }else {
                 let response = service.response(uri);
 
                 if let Ok(response_string) = response {
-                    "HTTP/1.1 200 OK\nContent-Type: text/html\n\n".to_string() + &response_string
+                    ResponseType::Ok(response_string.to_string())
                 }else {
-                    "HTTP/1.1 404 Not Found\nContent-Type: text/html\n\n<h1>Not Found</h1>".to_string()
+                    ResponseType::NotFound("<h1>Not Found</h1>".to_string())
                 }
             }
         }
@@ -102,7 +108,18 @@ impl Server {
 
             if let Ok(request) = get_http_message(&mut stream) {
                 if let Ok(uri) = get_uri(&request) {
-                    let response_http_message = response(&mut self.service, &uri);       
+                    println!("request: {}", uri);
+                    let wrapped_response = response(&mut self.service, &uri);
+                    
+                    let response_http_message = match wrapped_response {
+                        ResponseType::Ok(msg) => "HTTP/1.1 200 OK\nContent-Type: text/html\n\n".to_string() + &msg,
+                        ResponseType::NotFound(msg) => "HTTP/1.1 404 NotFound\nContent-Type: text/html\n\n".to_string() + &msg,
+                        ResponseType::Shutdown(msg) => {
+                            let shutdown_message = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n".to_string() + &msg;
+                            if let Ok(_) = stream.write_all(&shutdown_message.into_bytes()) {}
+                            std::process::exit(0);
+                        }
+                    };
 
                     if let Ok(_) = stream.write_all(&response_http_message.into_bytes()) {}
                 }
