@@ -57,7 +57,60 @@ static ERROR_PAGE_HTML: &str = "
 </html>
 ";
 
-static SIGNUP_PAGE_HTML: &str = "
+pub struct UsersData {
+    users: Vec<User>,
+    ranking: Vec<usize>
+}
+
+struct User {
+    name: String,
+    id: u64,
+    score: i32
+}
+
+impl UsersData {
+    pub fn new() -> UsersData {
+        UsersData {
+            users: Vec::new(),
+            ranking: Vec::new()
+        }
+    }
+
+    fn signup_user(&mut self, name: &str, userid: u64) -> usize {
+        self.users.push(User { name: name.to_string(), id: userid, score: 0 });
+        self.users.len() - 1
+    }
+
+    fn get_index_by_id(&self, userid: u64) -> Option<usize> {
+        for i in 0 .. self.users.len() {
+            if self.users[i].id == userid {
+                return Some(i)
+            }
+        }
+
+        None
+    }
+
+    fn is_used_name(&self, name: &str) -> bool {
+        if name == "" { return true; }
+        if name.to_string().contains(",") { return true; }
+
+        for i in 0 .. self.users.len() {
+            if self.users[i].name == name {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn build_signuppage(msg: &str) -> String {
+        let insert_message = if msg.len() != 0 {
+            "<div>".to_string() + msg + "</div>"
+        }else {
+            String::new()
+        };
+
+        "
 <!DOCTYPE html>
 <html lang=\"ja\">
     <meta charset=\"utf-8\">
@@ -112,65 +165,24 @@ static SIGNUP_PAGE_HTML: &str = "
                 let object = document.getElementById(\"text_box\");
                 let path = location.href;
                 if(path.substring(path.length-1) == \"/\") {
-                    path.pop();
+                    path = path.substring(0, path.length-1);
                 }
-                location.href = path + \"?\" + object.value;
+                location.href = path.split(\"?\")[0] + \"?\" + object.value;
             }
         </script>
     </head>
 
     <body>
         <h1>SignUp</h1>
+".to_string()
+ + &insert_message
++ "
         <input id=\"text_box\" type=\"text\" placeholder=\"NickName\"></input>
-        <button onclick=\"signup()\">SigUp</button>
+        <button onclick=\"signup()\">SignUp</button>
         <div class=\"sign\">built by <a class=\"sign\" href=\"https://github.com/kntt32/\">kntt32</a></div>
     </body>
 </html>
-";
-
-pub struct UsersData {
-    users: Vec<User>,
-    ranking: Vec<usize>
-}
-
-struct User {
-    name: String,
-    id: u64,
-    score: i32
-}
-
-impl UsersData {
-    pub fn new() -> UsersData {
-        UsersData {
-            users: Vec::new(),
-            ranking: Vec::new()
-        }
-    }
-
-    fn signup_user(&mut self, name: &str, userid: u64) -> usize {
-        self.users.push(User { name: name.to_string(), id: userid, score: 0 });
-        self.users.len() - 1
-    }
-
-    fn get_index_by_id(&self, userid: u64) -> Option<usize> {
-        for i in 0 .. self.users.len() {
-            if self.users[i].id == userid {
-                return Some(i)
-            }
-        }
-
-        None
-    }
-
-    fn is_used_name(&self, name: &str) -> bool {
-        if name == "" { return true; }
-
-        for i in 0 .. self.users.len() {
-            if self.users[i].name == name {
-                return true;
-            }
-        }
-        false
+"
     }
 
     fn build_userpage(&self, id: u64) -> Result<String, String> {
@@ -224,10 +236,57 @@ impl UsersData {
                 background: #dee9ec;
                 margin: 10px;
             }
+
+            #score_board {
+                width: 300px;
+                height: 120px;
+                font-size: 60px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #dee9ec;
+                margin: 10px;
+
+                display: grid;
+                justify-items: center;
+                align-content: center;
+            }
+
+            #link_to_ranking {
+                color: #929292;
+                margin: 20px;
+            }
+
+            #admin_mode_button {
+                position: absolute;
+                top: 5px;
+                left: 5px;
+
+                display: grid;
+                justify-items: center;
+                align-content: center;
+
+                width: 40px;
+                height: 40px;
+            }
+
+            .circle {
+                background: #929292;
+                border-radius: 5px;
+                width: 5px;
+                height: 5px;
+                border-width: 0px;
+                margin: 5px;
+            }
         </style>
 
         <script>
-            
+            function admin_mode() {
+                let path = location.href;
+                if(path.substring(path.length - 1) == \"/\") {
+                    path = path.substring(0, path.length-1);
+                }
+                location.href = path.split(\"?\")[0] + \"/admin\";
+            }
         </script>
     </head>
 
@@ -235,8 +294,20 @@ impl UsersData {
         <h1>UserPage</h1>
         <h2>".to_string() + &self.users[index].name + "さん</h2>
 
-        <a href=\"/ranking\">ランキングを見る</a>
+        <div id=\"score_board\">
+        "+ &self.users[index].score.to_string() +"
+        </div>
+
+        <a id=\"link_to_ranking\" href=\"/ranking\">ランキングを見る</a>
         <div class=\"sign\">built by <a class=\"sign\" href=\"https://github.com/kntt32/\">kntt32</a></div>
+
+        <button id=\"admin_mode_button\" onclick=\"admin_mode();\">
+            <div>
+                <div class=\"circle\"></div>
+                <div class=\"circle\"></div>
+                <div class=\"circle\"></div>
+            </div>
+        </button>
     </body>
 </html>")
         }else {
@@ -296,14 +367,6 @@ impl UsersData {
         </style>
 
         <script>
-            function signup() {
-                let object = document.getElementById(\"text_box\");
-                let path = location.href;
-                if(path.substring(path.length-1) == \"/\") {
-                    path.pop();
-                }
-                location.href = path + \"?\" + object.value;
-            }
         </script>
     </head>
 
@@ -321,7 +384,7 @@ impl Service for UsersData {
         let url_string = url.to_string();
         let url_vec: Vec<&str> = url_string.split("/").collect();
 
-        if 2 <= url_vec.len() && url_vec[1] == "user" {
+        if url_vec.len() == 3 && url_vec[1] == "user" {
             if let Ok(userid) = url_vec[2].parse::<u64>() {
                 let index_optional = self.get_index_by_id(userid);
 
@@ -335,7 +398,11 @@ impl Service for UsersData {
                             println!("new user: {} (@{})", query, userid);
                             self.build_userpage(userid)
                         }else {
-                            Ok(SIGNUP_PAGE_HTML.to_string())
+                            if query.len() == 0 {
+                                Ok(UsersData::build_signuppage(""))
+                            }else {
+                                Ok(UsersData::build_signuppage("使用済み、アルファベットや一部記号以外は使用できません"))
+                            }
                         }
 
                     }
