@@ -125,9 +125,27 @@ static ADMIN_PAGE_HTML: &str = "
         </style>
 
         <script>
+            function save() {
+                if(confirm(\"保存しますか?\")) {
+                    let path = location.href;
+                    let splitted_path = path.split(\"?\");
+                    let query = \"\";
+                    if(2 <= splitted_path.length) {
+                        query = splitted_path[1];
+                    }
+                    location.href = \"/admin/save_service?\" + query;
+                }
+            }
+
             function shutdown() {
                 if(confirm(\"シャットダウンしますか?\")) {
-                    location.href = \"/admin/shutdown\";
+                    let path = location.href;
+                    let splitted_path = path.split(\"?\");
+                    let query = \"\";
+                    if(2 <= splitted_path.length) {
+                        query = splitted_path[1];
+                    }
+                    location.href = \"/admin/shutdown?\" + query;
                 }
             }
         </script>
@@ -135,12 +153,14 @@ static ADMIN_PAGE_HTML: &str = "
 
     <body>
         <h1>AdminPage</h1>
+        <button onclick=\"save()\">Save</button>
         <button onclick=\"shutdown()\">Shutdow</button>
         <div class=\"sign\">built by <a class=\"sign\" href=\"https://github.com/kntt32/\">kntt32</a></div>
     </body>
 </html>
 ";
 
+const SAVESERVICE_URL: &str = "/admin/save_service";
 const SHUTDOWN_URL: &str = "/admin/shutdown";
 
 
@@ -216,9 +236,21 @@ impl Server {
                         ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
                     }
                 },
+                SAVESERVICE_URL => {
+                    if query == ADMIN_PASSWORD {
+                        service.save();
+                        ResponseType::Ok(ADMIN_PAGE_HTML.to_string())
+                    }else {
+                        ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
+                    }
+                },
                 SHUTDOWN_URL => {
-                    service.save();
-                    ResponseType::Shutdown
+                    if query == ADMIN_PASSWORD {
+                        service.save();
+                        ResponseType::Shutdown
+                    }else {
+                        ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
+                    }
                 },
                 _ => {
                     let response = service.response(url, query);
