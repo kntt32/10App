@@ -241,6 +241,7 @@ impl UsersData {
     fn make_ranking(&mut self) {
         let compare = | x: &User , y: &User | { y.score.cmp(&x.score) };
         self.users.sort_by(compare);
+        self.save();
     }
 
     fn build_signuppage(msg: &str) -> String {
