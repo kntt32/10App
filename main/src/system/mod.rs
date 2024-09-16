@@ -1,6 +1,9 @@
 use server::Service;
+use std::fs;
+use std::str::from_utf8;
 
 const ADMIN_PASSWORD: &str = "shuma240";
+const USERSDATA_FILENAME: &str = "users_data";
 
 static ERROR_PAGE_HTML: &str = "
 <!DOCTYPE html>
@@ -145,8 +148,7 @@ static ADMIN_MODE_AUTH: &str = "
 
 
 pub struct UsersData {
-    users: Vec<User>,
-    ranking: Vec<usize>
+    users: Vec<User>
 }
 
 struct User {
@@ -157,9 +159,30 @@ struct User {
 
 impl UsersData {
     pub fn new() -> UsersData {
-        UsersData {
-            users: Vec::new(),
-            ranking: Vec::new()
+        if let Ok(file_bin) = fs::read(USERSDATA_FILENAME) {
+            if let Ok(file_string) = from_utf8(&file_bin) {
+                let file_vec: Vec<&str> = file_string.split(",").collect();
+
+                let mut users_vec = Vec::new();
+                for i in 0 .. file_vec.len()/3 {
+                    let id = if let Ok(parsed_id) = file_vec[i*3+1].parse::<u64>() { parsed_id } else { 
+                        return UsersData { users: Vec::new() }
+                    };
+
+                    let score = if let Ok(parsed_score) = file_vec[i*3+2].parse::<i32>() { parsed_score } else { 
+                        return UsersData { users: Vec::new() }
+                    };
+
+                    users_vec.push(User{ name: file_vec[i*3].to_string(), id: id, score: score });
+                }
+                UsersData { users: users_vec }
+            }else {
+                println!("invalid file");
+                UsersData { users: Vec::new() } 
+            }
+        }else {
+            println!("file not found");
+            UsersData { users: Vec::new() } 
         }
     }
 
@@ -194,6 +217,12 @@ impl UsersData {
         if let Some(index) = self.get_index_by_id(userid) {
             self.users[index].score = score;
         }
+        self.make_ranking();
+    }
+
+    fn make_ranking(&mut self) {
+        let compare = | x: &User , y: &User | { y.score.cmp(&x.score) };
+        self.users.sort_by(compare);
     }
 
     fn build_signuppage(msg: &str) -> String {
@@ -503,6 +532,40 @@ impl UsersData {
     }
 
     fn build_ranking(&self) -> Result<String, String> {
+        let mut ranking_html = String::new();
+
+        if self.users.len() == 0 {
+            ranking_html = String::from("No User");
+        }else {
+            for i in 0 .. self.users.len() {
+                if i == 0 {
+                    ranking_html.push_str(&("
+                        <div style='display: flex'>
+                        <div class='ranking_first' style='float: left;width: 40px;'>".to_string()+ &(i+1).to_string() +"</div>
+                        <div class='ranking_first' style='float: left;width: 160px;'>"+ &self.users[i].name +"</div>
+                        <div class='ranking_first' style='float: left;width: 100px;'>"+ &self.users[i].score.to_string() +"</div>
+                        </div>
+                        "));
+                }else if i <= 2 {
+                    ranking_html.push_str(&("
+                        <div style='display: flex'>
+                        <div class='ranking_best3' style='float: left;width: 40px;'>".to_string()+ &(i+1).to_string() +"</div>
+                        <div class='ranking_best3' style='float: left;width: 160px;'>"+ &self.users[i].name +"</div>
+                        <div class='ranking_best3' style='float: left;width: 100px;'>"+ &self.users[i].score.to_string() +"</div>
+                        </div>
+                        "));
+                }else {
+                    ranking_html.push_str(&("
+                        <div style='display: flex'>
+                        <div class='ranking' style='float: left;width: 40px;'>".to_string()+ &(i+1).to_string() +"</div>
+                        <div class='ranking' style='float: left;width: 160px;'>"+ &self.users[i].name +"</div>
+                        <div class='ranking' style='float: left;width: 100px;'>"+ &self.users[i].score.to_string() +"</div>
+                        </div>
+                        "));
+                }
+            }
+        }
+
         Ok("
 <!DOCTYPE html>
 <html lang='ja'>
@@ -551,18 +614,63 @@ impl UsersData {
                 background: #dee9ec;
                 margin: 10px;
             }
+
+            .ranking_first {
+                font-size: 25px;
+                height: 60px;
+                background: #ffd977;
+                margin: 5px;
+
+                display: grid;
+                justify-items: center;
+                align-content: center;
+
+                border-width: 0px;
+            }
+
+            .ranking_best3 {
+                font-size: 25px;
+                height: 60px;
+                background: #9ac9d9;
+                margin: 5px;
+
+                display: grid;
+                justify-items: center;
+                align-content: center;
+
+                border-width: 0px;
+            }
+
+            .ranking {
+                font-size: 25px;
+                height: 60px;
+                background: #dee8ed;
+                margin: 5px;
+
+                display: grid;
+                justify-items: center;
+                align-content: center;
+
+                border-width: 0px;
+            }
         </style>
 
         <script>
+
+        setTimeout(function () {
+            location.reload();
+        }, 60000);
         </script>
     </head>
 
     <body>
         <h1>Ranking</h1>
-        
+        ".to_string() + 
+&ranking_html
+         + "
     </body>
 </html>
-".to_string())
+")
     }
 }
 
@@ -628,10 +736,23 @@ impl Service for UsersData {
     }
 
     fn save(&self) {
+        let mut file_text = String::new();
 
+        for i in 0 .. self.users.len() {
+            file_text.push_str(&self.users[i].name);
+            file_text.push(',');
+            file_text.push_str(&self.users[i].id.to_string());
+            file_text.push(',');
+            file_text.push_str(&self.users[i].score.to_string());
+            file_text.push(',');
+        }
+
+        fs::write(USERSDATA_FILENAME, file_text.as_bytes()).expect("Err: Fail to Save");
     }
 
     fn reset(&mut self) {
+        self.users = Vec::new();
 
+        fs::write(USERSDATA_FILENAME, b"").expect("Err: Fail to Save");
     }
 }
