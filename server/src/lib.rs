@@ -4,6 +4,7 @@ use std::error::Error;
 use std::io::Read;
 use std::io::Write;
 
+
 const ADMIN_PASSWORD: &str = "shuma240";
 
 const ADMIN_PAGE_URL: &str = "/admin";
@@ -54,6 +55,7 @@ static ADMIN_PAGE_AUTH: &str = "
                 border-width: 0px;
                 background: #dee9ec;
                 margin: 10px;
+                color: black;
             }
         </style>
 
@@ -121,10 +123,21 @@ static ADMIN_PAGE_HTML: &str = "
                 border-width: 0px;
                 background: #dee9ec;
                 margin: 10px;
+                color: black;
             }
         </style>
 
         <script>
+            function service_admin() {
+                let path = location.href;
+                let splitted_path = path.split('?');
+                let query = '';
+                if(2 <= splitted_path.length) {
+                    query = splitted_path[1];
+                }
+                location.href = 'admin/service?' + query;
+            }
+
             function save() {
                 if(confirm('保存しますか?')) {
                     let path = location.href;
@@ -165,14 +178,16 @@ static ADMIN_PAGE_HTML: &str = "
 
     <body>
         <h1>AdminPage</h1>
+        <button onclick='service_admin()'>ServiceAdmin</button>
         <button onclick='save()'>Save</button>
-        <button onclick='shutdown()'>Shutdow</button>
+        <button onclick='shutdown()'>Shutdown</button>
         <button onclick='reset()'>Reset</button>
         <div class='sign'>built by <a class='sign' href='https://github.com/kntt32/'>kntt32</a></div>
     </body>
 </html>
 ";
 
+const SERVICE_ADMIN: &str = "/admin/service";
 const SAVESERVICE_URL: &str = "/admin/save_service";
 const SHUTDOWN_URL: &str = "/admin/shutdown";
 const RESET_URL: &str = "/admin/reset";
@@ -189,6 +204,8 @@ pub trait Service {
     fn save(&self);
 
     fn reset(&mut self);
+
+    fn service_admin(&mut self) -> Result<String, String>;
 }
 
 
@@ -248,6 +265,16 @@ impl Server {
                 ADMIN_PAGE_URL => {
                     if query == ADMIN_PASSWORD {
                         ResponseType::Ok(ADMIN_PAGE_HTML.to_string())
+                    }else {
+                        ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
+                    }
+                },
+                SERVICE_ADMIN => {
+                    if query == ADMIN_PASSWORD {
+                        match service.service_admin() {
+                            Ok(response) => ResponseType::Ok(response),
+                            Err(response) => ResponseType::NotFound(response)
+                        }
                     }else {
                         ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
                     }

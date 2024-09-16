@@ -2,6 +2,7 @@ use server::Service;
 use std::fs;
 use std::str::from_utf8;
 
+
 const ADMIN_PASSWORD: &str = "shuma240";
 const USERSDATA_FILENAME: &str = "users_data";
 
@@ -52,6 +53,7 @@ static ERROR_PAGE_HTML: &str = "
                 border-width: 0px;
                 background: #dee9ec;
                 margin: 10px;
+                color: black;
             }
         </style>
     </head>
@@ -124,6 +126,7 @@ static ADMIN_MODE_AUTH: &str = "
                 border-width: 0px;
                 background: #dee9ec;
                 margin: 10px;
+                color: black;
             }
         </style>
 
@@ -148,7 +151,8 @@ static ADMIN_MODE_AUTH: &str = "
 
 
 pub struct UsersData {
-    users: Vec<User>
+    users: Vec<User>,
+    used_max_userid: u64
 }
 
 struct User {
@@ -166,24 +170,30 @@ impl UsersData {
                 let mut users_vec = Vec::new();
                 for i in 0 .. file_vec.len()/3 {
                     let id = if let Ok(parsed_id) = file_vec[i*3+1].parse::<u64>() { parsed_id } else { 
-                        return UsersData { users: Vec::new() }
+                        return UsersData { users: Vec::new(), used_max_userid: 0 }
                     };
 
                     let score = if let Ok(parsed_score) = file_vec[i*3+2].parse::<i32>() { parsed_score } else { 
-                        return UsersData { users: Vec::new() }
+                        return UsersData { users: Vec::new(), used_max_userid: 0 }
                     };
 
                     users_vec.push(User{ name: file_vec[i*3].to_string(), id: id, score: score });
                 }
-                UsersData { users: users_vec }
+                UsersData { users: users_vec, used_max_userid: 0 }
             }else {
                 println!("invalid file");
-                UsersData { users: Vec::new() } 
+                UsersData { users: Vec::new(), used_max_userid: 0 } 
             }
         }else {
             println!("file not found");
-            UsersData { users: Vec::new() } 
+            UsersData { users: Vec::new(), used_max_userid: 0 } 
         }
+    }
+
+    fn reserve_userid(&mut self, n: u64) -> u64 {
+        let result = self.used_max_userid;
+        self.used_max_userid += n*10000;
+        result
     }
 
     fn signup_user(&mut self, name: &str, userid: u64) -> usize {
@@ -279,6 +289,7 @@ impl UsersData {
                 border-width: 0px;
                 background: #dee9ec;
                 margin: 10px;
+                color: black;
             }
         </style>
 
@@ -358,6 +369,7 @@ impl UsersData {
                 border-width: 0px;
                 background: #dee9ec;
                 margin: 10px;
+                color: black;
             }
 
             #score_board {
@@ -499,6 +511,7 @@ impl UsersData {
                 border-width: 0px;
                 background: #dee9ec;
                 margin: 10px;
+                color: black;
             }
         </style>
 
@@ -613,8 +626,9 @@ impl UsersData {
                 border-width: 0px;
                 background: #dee9ec;
                 margin: 10px;
+                color: black;
             }
-
+            
             .ranking_first {
                 font-size: 25px;
                 height: 60px;
@@ -754,5 +768,67 @@ impl Service for UsersData {
         self.users = Vec::new();
 
         fs::write(USERSDATA_FILENAME, b"").expect("Err: Fail to Save");
+    }
+
+    fn service_admin(&mut self) -> Result<String, String> {
+
+        Ok("
+<!DOCTYPE html>
+<html lang='ja'>
+    <meta charset='utf-8'>
+    <title>NotFound</title>
+    <head>
+        <style>
+            .sign {
+                font-size: 12px;
+                color: #b0b0b0;
+            }
+            body {
+                font-family: sans-serif;
+                margin-right: auto;
+                margin-left: auto;
+                display: grid;
+                justify-items: center;
+                align-content: start;
+            }
+            h1 {
+                width: auto;
+                font-size: 30px;
+                margin: 10px;
+            }
+            h2 {
+                width: auto;
+                font-size: 25px;
+                margin: 10px;
+                color: #929292;
+            }
+            input {
+                width: 200px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #ebebeb;
+                margin: 10px;
+            }
+            button {
+                width: 150px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #dee9ec;
+                margin: 10px;
+                color: black;
+            }
+        </style>
+    </head>
+
+    <body>
+        <h1>CreateQRCode</h1>
+    </body>
+</html>
+".to_string())
+
     }
 }
