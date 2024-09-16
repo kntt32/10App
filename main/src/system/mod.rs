@@ -168,31 +168,39 @@ impl UsersData {
                 let file_vec: Vec<&str> = file_string.split(",").collect();
 
                 let mut users_vec = Vec::new();
-                for i in 0 .. file_vec.len()/3 {
-                    let id = if let Ok(parsed_id) = file_vec[i*3+1].parse::<u64>() { parsed_id } else { 
+                for i in 0 .. (file_vec.len()-1)/3 {
+                    let id = if let Ok(parsed_id) = file_vec[i*3+2].parse::<u64>() { parsed_id } else {
+                        println!("invalid file");
                         return UsersData { users: Vec::new(), used_max_userid: 0 }
                     };
 
-                    let score = if let Ok(parsed_score) = file_vec[i*3+2].parse::<i32>() { parsed_score } else { 
+                    let score = if let Ok(parsed_score) = file_vec[i*3+3].parse::<i32>() { parsed_score }else {
+                        println!("invalid file");
                         return UsersData { users: Vec::new(), used_max_userid: 0 }
                     };
 
-                    users_vec.push(User{ name: file_vec[i*3].to_string(), id: id, score: score });
+                    users_vec.push(User{ name: file_vec[i*3+1].to_string(), id: id, score: score });
                 }
-                UsersData { users: users_vec, used_max_userid: 0 }
+
+                if let Ok(used_max_userid) = file_vec[0].parse::<u64>() {
+                    UsersData { users: users_vec, used_max_userid: used_max_userid }
+                }else {
+                    println!("invalid file");
+                    UsersData { users: Vec::new(), used_max_userid: 0 }
+                }
             }else {
                 println!("invalid file");
-                UsersData { users: Vec::new(), used_max_userid: 0 } 
+                UsersData { users: Vec::new(), used_max_userid: 0 }
             }
         }else {
             println!("file not found");
-            UsersData { users: Vec::new(), used_max_userid: 0 } 
+            UsersData { users: Vec::new(), used_max_userid: 0 }
         }
     }
 
     fn reserve_userid(&mut self, n: u64) -> u64 {
         let result = self.used_max_userid;
-        self.used_max_userid += n*10000;
+        self.used_max_userid += n*5000;
         result
     }
 
@@ -752,6 +760,9 @@ impl Service for UsersData {
     fn save(&self) {
         let mut file_text = String::new();
 
+        file_text.push_str(&self.used_max_userid.to_string());
+        file_text.push(',');
+
         for i in 0 .. self.users.len() {
             file_text.push_str(&self.users[i].name);
             file_text.push(',');
@@ -771,12 +782,14 @@ impl Service for UsersData {
     }
 
     fn service_admin(&mut self) -> Result<String, String> {
+        let base = self.reserve_userid(100);
 
+        //3*10
         Ok("
 <!DOCTYPE html>
 <html lang='ja'>
     <meta charset='utf-8'>
-    <title>NotFound</title>
+    <title>CreateQRCode</title>
     <head>
         <style>
             .sign {
@@ -822,13 +835,44 @@ impl Service for UsersData {
                 color: black;
             }
         </style>
+
+        <script>
+
+            function getRandomInt(max) {
+                return Math.floor(Math.random() * max);
+            }
+            window.onload = function() {
+                let qrcodes = document.getElementById('qrcodes');
+                let html = '';
+
+                let url = new URL(location.href.split());
+                let host = url.protocol + '//' + url.hostname;
+
+                let userid_base = ".to_string() + &base.to_string()
+                +
+                "
+
+                for(let i=0; i<6; i++) {
+                    html += '<div style=\"display: flex\">';
+                    for(let k=0; k<4; k++) {
+                        html += '<img style=\"margin: 10px;\" src=\"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + host + '/user/' + (userid_base+(i*3+k)*5000+getRandomInt(5000)) + '\"></img>';
+                    }
+                    html += '</div>';
+                }
+
+                qrcodes.innerHTML = html;
+
+                window.print();
+            }
+        </script>
     </head>
 
     <body>
-        <h1>CreateQRCode</h1>
+        <div id='qrcodes'>
+        </div>
     </body>
 </html>
-".to_string())
+")
 
     }
 }
