@@ -9,8 +9,8 @@ const ADMIN_PASSWORD: &str = "shuma240";
 const ADMIN_PAGE_URL: &str = "/admin";
 static ADMIN_PAGE_AUTH: &str = "
 <!DOCTYPE html>
-<html lang=\"ja\">
-    <meta charset=\"utf-8\">
+<html lang='ja'>
+    <meta charset='utf-8'>
     <title>Login</title>
     <head>
         <style>
@@ -59,25 +59,25 @@ static ADMIN_PAGE_AUTH: &str = "
 
         <script>
             function send_password() {
-                let object = document.getElementById(\"password_box\");
-                location.href = \"/admin?\" + object.value;
+                let object = document.getElementById('password_box');
+                location.href = '/admin?' + object.value;
             }
         </script>
     </head>
 
     <body>
         <h1>AdminPage</h1>
-        <input id=\"password_box\" type=\"password\" placeholder=\"Password\"></input>
-        <button onclick=\"send_password()\">Login</button>
-        <div class=\"sign\">built by <a class=\"sign\" href=\"https://github.com/kntt32/\">kntt32</a></div>
+        <input id='password_box' type='password' placeholder='Password'></input>
+        <button onclick='send_password()'>Login</button>
+        <div class='sign'>built by <a class='sign' href='https://github.com/kntt32/'>kntt32</a></div>
     </body>
 </html>
 ";
 
 static ADMIN_PAGE_HTML: &str = "
 <!DOCTYPE html>
-<html lang=\"ja\">
-    <meta charset=\"utf-8\">
+<html lang='ja'>
+    <meta charset='utf-8'>
     <title>AdminPage</title>
     <head>
         <style>
@@ -126,26 +126,38 @@ static ADMIN_PAGE_HTML: &str = "
 
         <script>
             function save() {
-                if(confirm(\"保存しますか?\")) {
+                if(confirm('保存しますか?')) {
                     let path = location.href;
-                    let splitted_path = path.split(\"?\");
-                    let query = \"\";
+                    let splitted_path = path.split('?');
+                    let query = '';
                     if(2 <= splitted_path.length) {
                         query = splitted_path[1];
                     }
-                    location.href = \"/admin/save_service?\" + query;
+                    location.href = '/admin/save_service?' + query;
                 }
             }
 
             function shutdown() {
-                if(confirm(\"シャットダウンしますか?\")) {
+                if(confirm('シャットダウンしますか?')) {
                     let path = location.href;
-                    let splitted_path = path.split(\"?\");
-                    let query = \"\";
+                    let splitted_path = path.split('?');
+                    let query = '';
                     if(2 <= splitted_path.length) {
                         query = splitted_path[1];
                     }
-                    location.href = \"/admin/shutdown?\" + query;
+                    location.href = '/admin/shutdown?' + query;
+                }
+            }
+
+            function reset() {
+                if(confirm('リセットしますか?')) {
+                    let path = location.href;
+                    let splitted_path = path.split('?');
+                    let query = '';
+                    if(2 <= splitted_path.length) {
+                        query = splitted_path[1];
+                    }
+                    location.href = '/admin/reset?' + query;
                 }
             }
         </script>
@@ -153,15 +165,17 @@ static ADMIN_PAGE_HTML: &str = "
 
     <body>
         <h1>AdminPage</h1>
-        <button onclick=\"save()\">Save</button>
-        <button onclick=\"shutdown()\">Shutdow</button>
-        <div class=\"sign\">built by <a class=\"sign\" href=\"https://github.com/kntt32/\">kntt32</a></div>
+        <button onclick='save()'>Save</button>
+        <button onclick='shutdown()'>Shutdow</button>
+        <button onclick='reset()'>Reset</button>
+        <div class='sign'>built by <a class='sign' href='https://github.com/kntt32/'>kntt32</a></div>
     </body>
 </html>
 ";
 
 const SAVESERVICE_URL: &str = "/admin/save_service";
 const SHUTDOWN_URL: &str = "/admin/shutdown";
+const RESET_URL: &str = "/admin/reset";
 
 
 pub struct Server {
@@ -173,6 +187,8 @@ pub trait Service {
     fn response(&mut self, url: &str, query: &str) -> Result<String, String>;
 
     fn save(&self);
+
+    fn reset(&mut self);
 }
 
 
@@ -248,6 +264,14 @@ impl Server {
                     if query == ADMIN_PASSWORD {
                         service.save();
                         ResponseType::Shutdown
+                    }else {
+                        ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
+                    }
+                },
+                RESET_URL => {
+                    if query == ADMIN_PASSWORD {
+                        service.reset();
+                        ResponseType::Ok(ADMIN_PAGE_HTML.to_string())
                     }else {
                         ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
                     }

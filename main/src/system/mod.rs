@@ -1,9 +1,11 @@
 use server::Service;
 
+const ADMIN_PASSWORD: &str = "shuma240";
+
 static ERROR_PAGE_HTML: &str = "
 <!DOCTYPE html>
-<html lang=\"ja\">
-    <meta charset=\"utf-8\">
+<html lang='ja'>
+    <meta charset='utf-8'>
     <title>NotFound</title>
     <head>
         <style>
@@ -57,6 +59,91 @@ static ERROR_PAGE_HTML: &str = "
 </html>
 ";
 
+static JUMP_TO_RANKING: &str = "
+<!DOCTYPE html>
+<html lang='ja'>
+    <meta charset='utf-8'>
+    <title>Redirect</title>
+    <head>
+        <script>
+            window.onload = function() {
+                location.href = '/';
+            };
+        </script>
+    </head>
+</html>
+";
+
+static ADMIN_MODE_AUTH: &str = "
+<!DOCTYPE html>
+<html lang='ja'>
+    <meta charset='utf-8'>
+    <title>Login</title>
+    <head>
+        <style>
+            .sign {
+                font-size: 12px;
+                color: #b0b0b0;
+            }
+            body {
+                font-family: sans-serif;
+                margin-right: auto;
+                margin-left: auto;
+                display: grid;
+                justify-items: center;
+                align-content: start;
+            }
+            h1 {
+                width: auto;
+                font-size: 30px;
+                margin: 10px;
+            }
+            h2 {
+                width: auto;
+                font-size: 25px;
+                margin: 10px;
+                color: #929292;
+            }
+            input {
+                width: 200px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #ebebeb;
+                margin: 10px;
+            }
+            button {
+                width: 150px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #dee9ec;
+                margin: 10px;
+            }
+        </style>
+
+        <script>
+            function send_password() {
+                let object = document.getElementById('password_box');
+                let path = location.href;
+                let splitted_path = path.split('?');
+                location.href = splitted_path[0] + '?' + object.value;
+            }
+        </script>
+    </head>
+
+    <body>
+        <h1>AdminMode</h1>
+        <input id='password_box' type='password' placeholder='Password'></input>
+        <button onclick='send_password()'>Login</button>
+        <div class='sign'>built by <a class='sign' href='https://github.com/kntt32/'>kntt32</a></div>
+    </body>
+</html>
+";
+
+
 pub struct UsersData {
     users: Vec<User>,
     ranking: Vec<usize>
@@ -103,6 +190,12 @@ impl UsersData {
         false
     }
 
+    fn set_score(&mut self, userid: u64, score: i32) {
+        if let Some(index) = self.get_index_by_id(userid) {
+            self.users[index].score = score;
+        }
+    }
+
     fn build_signuppage(msg: &str) -> String {
         let insert_message = if msg.len() != 0 {
             "<div>".to_string() + msg + "</div>"
@@ -112,8 +205,8 @@ impl UsersData {
 
         "
 <!DOCTYPE html>
-<html lang=\"ja\">
-    <meta charset=\"utf-8\">
+<html lang='ja'>
+    <meta charset='utf-8'>
     <title>SignUp</title>
     <head>
         <style>
@@ -162,12 +255,13 @@ impl UsersData {
 
         <script>
             function signup() {
-                let object = document.getElementById(\"text_box\");
+                let object = document.getElementById('text_box');
                 let path = location.href;
-                if(path.substring(path.length-1) == \"/\") {
+                if(path.substring(path.length-1) == '/') {
                     path = path.substring(0, path.length-1);
                 }
-                location.href = path.split(\"?\")[0] + \"?\" + object.value;
+                let encoded_user_name = encodeURI(object.value);
+                location.href = path.split('?')[0] + '?' + encoded_user_name;
             }
         </script>
     </head>
@@ -177,9 +271,9 @@ impl UsersData {
 ".to_string()
  + &insert_message
 + "
-        <input id=\"text_box\" type=\"text\" placeholder=\"NickName\"></input>
-        <button onclick=\"signup()\">SignUp</button>
-        <div class=\"sign\">built by <a class=\"sign\" href=\"https://github.com/kntt32/\">kntt32</a></div>
+        <input id='text_box' type='text' placeholder='NickName'></input>
+        <button onclick='signup()'>SignUp</button>
+        <div class='sign'>built by <a class='sign' href='https://github.com/kntt32/'>kntt32</a></div>
     </body>
 </html>
 "
@@ -190,8 +284,8 @@ impl UsersData {
             Ok(
 "
 <!DOCTYPE html>
-<html lang=\"ja\">
-    <meta charset=\"utf-8\">
+<html lang='ja'>
+    <meta charset='utf-8'>
     <title>UserPage</title>
     <head>
         <style>
@@ -275,37 +369,43 @@ impl UsersData {
                 width: 5px;
                 height: 5px;
                 border-width: 0px;
-                margin: 5px;
+                margin: 0px;
+                margin-top: 5px;
+                margin-bottom: 5px;
             }
         </style>
 
         <script>
             function admin_mode() {
                 let path = location.href;
-                if(path.substring(path.length - 1) == \"/\") {
+                if(path.substring(path.length - 1) == '/') {
                     path = path.substring(0, path.length-1);
                 }
-                location.href = path.split(\"?\")[0] + \"/admin\";
+                location.href = path.split('?')[0] + '/admin'
             }
+
+            window.onload = function() {
+                document.getElementById('user_name').textContent = decodeURI('".to_string() + &self.users[index].name +"');
+            };
         </script>
     </head>
 
     <body>
         <h1>UserPage</h1>
-        <h2>".to_string() + &self.users[index].name + "さん</h2>
+        <h2 id='user_name'>-</h2>
 
-        <div id=\"score_board\">
-        "+ &self.users[index].score.to_string() +"
+        <div id='score_board'>
+        " + &self.users[index].score.to_string() +"
         </div>
 
-        <a id=\"link_to_ranking\" href=\"/ranking\">ランキングを見る</a>
-        <div class=\"sign\">built by <a class=\"sign\" href=\"https://github.com/kntt32/\">kntt32</a></div>
+        <a id='link_to_ranking' href='/ranking'>ランキングを見る</a>
+        <div class='sign'>built by <a class='sign' href='https://github.com/kntt32/'>kntt32</a></div>
 
-        <button id=\"admin_mode_button\" onclick=\"admin_mode();\">
+        <button id='admin_mode_button' onclick='admin_mode();'>
             <div>
-                <div class=\"circle\"></div>
-                <div class=\"circle\"></div>
-                <div class=\"circle\"></div>
+                <div class='circle'></div>
+                <div class='circle'></div>
+                <div class='circle'></div>
             </div>
         </button>
     </body>
@@ -315,11 +415,98 @@ impl UsersData {
         }
     }
 
+    fn build_adminmode(&self, userid: u64, msg: &str) -> Result<String, String> {
+        let index_optional = self.get_index_by_id(userid);
+
+        let mut score: i32 = 0;
+        if let Some(index) = index_optional {
+            score = self.users[index].score;
+        }
+
+        Ok("
+<!DOCTYPE html>
+<html lang='ja'>
+    <meta charset='utf-8'>
+    <title>AdminPage</title>
+    <head>
+        <style>
+            .sign {
+                font-size: 12px;
+                color: #b0b0b0;
+            }
+            body {
+                font-family: sans-serif;
+                margin-right: auto;
+                margin-left: auto;
+                display: grid;
+                justify-items: center;
+                align-content: start;
+            }
+            h1 {
+                width: auto;
+                font-size: 30px;
+                margin: 10px;
+            }
+            h2 {
+                width: auto;
+                font-size: 25px;
+                margin: 10px;
+                color: #929292;
+            }
+            input {
+                width: 200px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #ebebeb;
+                margin: 10px;
+            }
+            button {
+                width: 150px;
+                height: 40px;
+                font-size: 20px;
+                border-radius: 0px;
+                border-width: 0px;
+                background: #dee9ec;
+                margin: 10px;
+            }
+        </style>
+
+        <script>
+            function submit() {
+                let path = location.href;
+                if(path.substring(path.length - 1) == '/') {
+                    path = path.substring(0, path.length-1);
+                }
+                let splitted_path = path.split('?');
+                let query = '';
+                if(2 <= splitted_path.length) {
+                    query = splitted_path[1];
+                }
+
+                let score = parseInt(document.getElementById('score_textbox').value) + ".to_string() + &score.to_string() + ";
+                location.href = path.split('?')[0] + '/' + score + '?' + query;
+            }
+        </script>
+    </head>
+
+    <body>
+        <h1>AdminMode</h1>
+        <label for='score_textbox'>スコア" + msg + "</label>
+        <input id='score_textbox' type='number' value='10' placeholder='スコアを入力'></input>
+        <button onclick='submit()'>Submit</button>
+        <div class='sign'>built by <a class='sign' href='https://github.com/kntt32/'>kntt32</a></div>
+    </body>
+</html>
+")
+    }
+
     fn build_ranking(&self) -> Result<String, String> {
         Ok("
 <!DOCTYPE html>
-<html lang=\"ja\">
-    <meta charset=\"utf-8\">
+<html lang='ja'>
+    <meta charset='utf-8'>
     <title>Ranking</title>
     <head>
         <style>
@@ -384,13 +571,36 @@ impl Service for UsersData {
         let url_string = url.to_string();
         let url_vec: Vec<&str> = url_string.split("/").collect();
 
-        if url_vec.len() == 3 && url_vec[1] == "user" {
+        if 3 <= url_vec.len() && url_vec[1] == "user" {
             if let Ok(userid) = url_vec[2].parse::<u64>() {
                 let index_optional = self.get_index_by_id(userid);
 
                 match index_optional {
                     Some(_) => {
-                        self.build_userpage(userid)
+                        if url_vec.len() == 3 {
+                            self.build_userpage(userid)
+                        }else if url_vec[3] == "admin" {
+                            match url_vec.len() {
+                                4 => if query == ADMIN_PASSWORD {
+                                        self.build_adminmode(userid, "")
+                                    }else {
+                                        Ok(ADMIN_MODE_AUTH.to_string())
+                                    },
+                                5 => if query == ADMIN_PASSWORD {
+                                        if let Ok(score) = url_vec[4].parse::<i32>() {
+                                            self.set_score(userid, score);
+                                            Ok(JUMP_TO_RANKING.to_string())
+                                        }else {
+                                            Err(ERROR_PAGE_HTML.to_string())
+                                        }
+                                    }else {
+                                        Err(ERROR_PAGE_HTML.to_string())
+                                    }
+                                _ => Err(ERROR_PAGE_HTML.to_string())
+                            }
+                        }else {
+                            Err(ERROR_PAGE_HTML.to_string())
+                        }
                     },
                     None => {
                         if !self.is_used_name(query) {
@@ -401,7 +611,7 @@ impl Service for UsersData {
                             if query.len() == 0 {
                                 Ok(UsersData::build_signuppage(""))
                             }else {
-                                Ok(UsersData::build_signuppage("使用済み、アルファベットや一部記号以外は使用できません"))
+                                Ok(UsersData::build_signuppage("使用できない名前です"))
                             }
                         }
 
@@ -418,6 +628,10 @@ impl Service for UsersData {
     }
 
     fn save(&self) {
+
+    }
+
+    fn reset(&mut self) {
 
     }
 }
