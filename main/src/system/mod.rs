@@ -556,6 +556,19 @@ impl UsersData {
     fn build_ranking(&self) -> Result<String, String> {
         let mut ranking_html = String::new();
 
+        let mut ranking_list = String::new();
+
+        ranking_list += "[";
+        for i in 0 .. self.users.len() {
+            if i != 0 {
+                ranking_list += ",";
+            }
+            ranking_list += &("\"".to_string() + &self.users[i].name + "\"");
+            ranking_list += ",";
+            ranking_list += &self.users[i].score.to_string();
+        }
+        ranking_list += "]";
+
         if self.users.len() == 0 {
             ranking_html = String::from("No User");
         }else {
@@ -683,14 +696,30 @@ impl UsersData {
         setTimeout(function () {
             location.reload();
         }, 60000);
+
+        window.onload = function() {
+        
+            let element = document.getElementById('rankings');
+            let ranking_html = '';
+            let ranking = ".to_string() + &ranking_list + ";
+            
+            for(let i=0; i<ranking.length/2; i++) {
+                if(i == 0) {
+                    ranking_html += \"<div style='display: flex'><div class='ranking_first' style='float: left;width: 40px;'>\"+ (i+1) +\"</div><div class='ranking_first' style='float: left;width: 160px;'>\"+ decodeURI(ranking[2*i]) +\"</div><div class='ranking_first' style='float: left;width: 100px;'>\"+ ranking[2*i+1] +\"</div></div>\";
+                }else if(i <= 2) {
+                    ranking_html += \"<div style='display: flex'><div class='ranking_best3' style='float: left;width: 40px;'>\"+ (i+1) +\"</div><div class='ranking_best3' style='float: left;width: 160px;'>\"+ decodeURI(ranking[2*i]) +\"</div><div class='ranking_best3' style='float: left;width: 100px;'>\"+ ranking[2*i+1] +\"</div></div>\";
+                }else {
+                    ranking_html += \"<div style='display: flex'><div class='ranking' style='float: left;width: 40px;'>\"+ (i+1) +\"</div><div class='ranking' style='float: left;width: 160px;'>\"+ decodeURI(ranking[2*i]) +\"</div><div class='ranking' style='float: left;width: 100px;'>\"+ ranking[2*i+1] +\"</div></div>\";
+                }
+            }
+            element.innerHTML = ranking_html;
+        };
         </script>
     </head>
 
     <body>
         <h1>Ranking</h1>
-        ".to_string() + 
-&ranking_html
-         + "
+        <div id='rankings'></div>
     </body>
 </html>
 ")
