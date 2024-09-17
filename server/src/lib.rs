@@ -187,6 +187,27 @@ static ADMIN_PAGE_HTML: &str = "
 </html>
 ";
 
+static JUMP_TO_ADMINPAGE: &str = "
+<!DOCTYPE html>
+<html lang='ja'>
+    <meta charset='utf8'>
+    <head>
+        <script>
+            window.onload = function() {
+                let path = location.href;
+                let splitted_path = path.split('?');
+                let query = '';
+                if(2 <= splitted_path.length) {
+                    query = splitted_path[1];
+                }
+
+                location.href = '/admin?' + query;
+            };
+        </script>
+    </head>
+</html>
+";
+
 const SERVICE_ADMIN: &str = "/admin/service";
 const SAVESERVICE_URL: &str = "/admin/save_service";
 const SHUTDOWN_URL: &str = "/admin/shutdown";
@@ -282,7 +303,7 @@ impl Server {
                 SAVESERVICE_URL => {
                     if query == ADMIN_PASSWORD {
                         service.save();
-                        ResponseType::Ok(ADMIN_PAGE_HTML.to_string())
+                        ResponseType::Ok(JUMP_TO_ADMINPAGE.to_string())
                     }else {
                         ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
                     }
@@ -298,7 +319,7 @@ impl Server {
                 RESET_URL => {
                     if query == ADMIN_PASSWORD {
                         service.reset();
-                        ResponseType::Ok(ADMIN_PAGE_HTML.to_string())
+                        ResponseType::Ok(JUMP_TO_ADMINPAGE.to_string())
                     }else {
                         ResponseType::Ok(ADMIN_PAGE_AUTH.to_string())
                     }
